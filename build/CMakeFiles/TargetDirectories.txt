@@ -1,0 +1,4 @@
+/home/kevin_luis/Documents/Kevin/Studies/TCC/Claude_rem/Beam/build/CMakeFiles/chess_engine.dir
+/home/kevin_luis/Documents/Kevin/Studies/TCC/Claude_rem/Beam/build/CMakeFiles/test_all.dir
+/home/kevin_luis/Documents/Kevin/Studies/TCC/Claude_rem/Beam/build/CMakeFiles/edit_cache.dir
+/home/kevin_luis/Documents/Kevin/Studies/TCC/Claude_rem/Beam/build/CMakeFiles/rebuild_cache.dir

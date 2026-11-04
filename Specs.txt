@@ -1,0 +1,178 @@
+────────────────────────────────────────
+0. REGRAS GERAIS (valem para todo o loop)
+────────────────────────────────────────
+A documentação (skills.md) só pode afirmar o que existe e foi verificado por teste.
+Funcionalidade parcial deve ser descrita como parcial.
+Os limites de recursos da competição devem ser confirmados no texto oficial das regras do Kaggle antes de serem tratados como definitivos.
+Se a página não puder ser lida, registrar a dúvida no skills.md e usar os valores abaixo como premissa explícita.
+Crie um diretório src/ para adicionar todo o código lá, exceto tests/, que deve estar no mesmo nível que src/
+ 
+────────────────────────────────────────
+1. OBJETIVO DO LOOP
+────────────────────────────────────────
+Escreva, em linguagem C, um projeto de programação para resolver o seguinte desafio:
+"You're challenged to devise innovative and efficient solutions to play chess against other agents, thereby further expanding the frontiers of AI research.
+Your exploration of novel, optimized techniques can address a growing complexity and scale of problems, like advancements in modeling and inference techniques
+and improvements upon traditional heuristic-based algorithms."
+(Desafio: FIDE & Google Efficient Chess AI Challenge, Kaggle — criar agentes que jogam xadrez sob
+restrições de recursos, priorizando eficiência em vez de força bruta.)
+ 
+Entregáveis:
+Um motor de xadrez funcional em C que, dada uma posição, devolve um lance legal em tempo limitado.
+Uma interface de agente compatível com o ambiente do Kaggle: receber o estado do tabuleiro (FEN) e devolver um lance em notação UCI(ex.: "e2e4"). Um wrapper em Python fino pode chamar o código C(via subprocess ou ctypes);
+A lógica de xadrez permanece em C.
+Arquivos .py capazes de gerar e modificar os pesos das variáveis de avaliação, produzindo múltiplos modelos com pesos diferentes de forma significativa.
+Um torneio local que joga partidas reais entre os modelos e reporta métricas reais.
+Um arquivo skills.md com a documentação final.
+ 
+────────────────────────────────────────
+2. FRONTEIRAS (O QUE NÃO FAZER)
+────────────────────────────────────────
+Utilizar outras bases de dados que não seja a específica.
+Usar bibliotecas que realizem de forma completamente automatizada o treinamento (ex.: PyTorch/TensorFlow/sklearn treinando um modelo end-to-end). O ajuste de pesos deve ser
+implementado pelo próprio projeto, com algoritmo explicável.
+Não depender de tabelas pré-computadas grandes, nem de redes neurais grandes, nem de dados baixados por inteiro: o motor final deve caber nos limites de recursos (seção 3).
+Não usar bibliotecas de xadrez prontas (python-chess, Stockfish embutido, etc.) dentro do agente.
+Exceção: um juiz externo (ex.: Stockfish) pode ser usado SOMENTE na ferramenta de medição de movimentos sub-ótimos, fora do agente submetido, e apenas se estiver instalado;
+Caso contrário usar o juiz interno definido na seção 4.
+Não alterar a spec, os testes ou as métricas para fazê-los passar. Se um teste falha, corrija o código.
+Não fabricar resultados.
+Se a IA encontrar um atalho indesejado (ex.: hardcode de resultados, desativar teste, retornarlance fixo), deve descartá-lo, registrar no skills.md e refazer a lógica.
+ 
+────────────────────────────────────────
+3. MÉTRICA DE CONCLUSÃO (CRITÉRIO DE PARADA)
+────────────────────────────────────────
+Limites de recursos assumidos (a confirmar, ver seção 0):
+Tamanho do programa: ≤ 64 KB (compactado, incluindo arquivos de configuração).
+Memória: ≤ 5 MB de RAM para o motor.
+CPU: 1 núcleo.
+Tempo: ≤ 10 s por lance (o motor deve usar um orçamento seguro, ex.: 70% do limite).
+ 
+O loop termina com SUCESSO somente quando TODOS os itens abaixo forem verdadeiros, verificados
+por comandos reais:
+ 
+- `make` compila sem erros e sem warnings com -Wall -Wextra.
+- `make test` executa e passa todos os testes da seção 4 (saída: "N/N testes passaram").
+- Perft correto a partir da posição inicial até profundidade 5 (4.865.609 nós) e nas posições de referência Kiwipete (prof. 4: 4.085.603) e posição 3 (prof. 5: 674.624).
+Qualquer divergência é falha.
+- Em 100 partidas do motor contra um jogador de lances aleatórios (cores alternadas), 0 lances ilegais e vitória em ≥ 95%.
+- O binário respeita os limites de tamanho, RAM (medida) e tempo por lance (medido).
+- O torneio imprime winrate e movimentos sub-ótimos calculados a partir de partidas jogadas de verdade, e o número de partidas é mostrado na saída.
+- skills.md criado/atualizado.
+- O sistema for compilado, cmaker gerado e funcional. Caso isto não seja o caso, refaça o código e recompile, até ele estar funcional.
+ 
+Orçamento de tempo:
+- Timer de 15 minutos para a fase de geração de código. Ao fim, iniciar os testes de integração
+com o que existe, mesmo incompleto, e listar o que ficou pendente.
+- Concluídos os testes, criar (ou editar) o arquivo "skills.md" e retornar as dificuldades
+encontradas ao usuário.
+ 
+Tentativas e falhas:
+- Caso uma verificação falhe, a IA deve corrigir e repetir, com no máximo 5 tentativas por item
+(valor padrão; o usuário pode substituir respondendo "decida por mim").
+- Após esse limite, parar, relatar o problema ao usuário e tornar explícito QUAIS testes falharam,
+com a saída do comando. Nunca marcar como concluído um item que falhou.
+- Os arquivos criados para teste devem ser inicializados com o cmake, junto com o resto do projeto.
+ 
+────────────────────────────────────────
+4. ALGORITMOS E REGRAS DE NEGÓCIO
+────────────────────────────────────────
+O sistema deverá funcionar de forma a gerar modelos com variáveis diferentes de forma
+significativa, que consigam jogar xadrez de verdade.
+ 
+Motor
+- Representação por bitboards, com tabelas de ataque corretas (máscaras de coluna para evitar
+que lances "deem a volta" no tabuleiro) e ataques deslizantes (torre, bispo, dama) calculados
+de verdade, com bloqueios.
+- Posição completa: peças, lado a jogar, roque, en passant, relógio de meio-lance, número do lance,
+carregamento e exportação de FEN, posição inicial.
+- Geração de lances legais: todos os lances, incluindo roque, en passant, promoção (para as 4
+peças), xeque, xeque-mate e afogamento. make/unmake de lance.
+- Fim de jogo: mate, afogamento, regra dos 50 lances, todos as finalizações legais do jogo.
+- A avaliação deve ser relativa ao lado a jogar (positivo = bom para quem joga).
+ 
+Avaliação e pesos
+- Avaliação = material + tabelas de valor por casa (piece-square tables) + termos simples
+(ex.: mobilidade, peões dobrados/isolados, segurança do rei). A lista exata de termos fica
+em um único vetor de pesos.
+- O vetor de pesos é carregado de arquivo binário (formato definido: little-endian, float32,
+com cabeçalho contendo versão e número de pesos. O C valida o cabeçalho e o tamanho).
+- Pesos de peça e de tabela devem ser estáveis em escala (ex.: centipeões), e o Rei não entra no
+material.
+ 
+Scripts Python (pesos)
+- Deve ter interface de linha de comando (número de modelos, fator de variação, semente,
+diretório de saída) e usar apenas a biblioteca padrão do Python, salvo `requests`/`urllib`
+para a API. O formato binário deve usar `struct` com ordem de bytes explícita ("<").
+- Se a API estiver inacessível, o script deve ABORTAR com mensagem clara. Pesos sintéticos nunca podem ser apresentados como
+vindos do dataset.
+- Verificação: os modelos gerados devem diferir de verdade. Teste: a diferença média entre dois
+modelos deve ser maior que um limiar definido (ex.: ≥ 1% da escala do peso), e a avaliação
+de ao menos uma posição de teste deve mudar entre eles.
+ 
+Torneio e métricas
+- Round-robin com partidas reais entre todos os modelos, cores alternadas, número de partidas
+por par configurável, posições iniciais variadas (ex.: livro de aberturas curto
+com 2–4 lances) para evitar partidas idênticas. Limite de tempo (ou de profundidade fixa) igual para todos.
+- Porcentagem de vitórias: vitórias + 0,5 × empates / total de partidas do modelo.
+- Ao final de N iterações (padrão de 5 gerações), apresentar ao usuário final o melhor modelo, sua porcentagem de vitórias em relação aos outros
+e uma tabela com a quantidade de movimentos sub-ótimos realizados por ele.
+- Desempate: caso modelos estejam empatados em winrate, vence o menor valor de movimentos sub-ótimos POR AÇÃO (total de lances sub-ótimos ÷ total de lances jogados).
+Persistindo o empate,vence o confronto direto; depois, o modelo de menor índice.
+- Saída da tabela: modelo, partidas, V/E/D, winrate, lances jogados, lances sub-ótimos, taxa sub-ótima por lance.
+ 
+Casos de teste mínimos esperados (todos automatizados em `make test`)
+Criação dos modelos, testes para o tabuleiro, ações possíveis do modelo, vazamento.
+Além disso, implemente a interface Kaggle: o wrapper recebe um FEN e retorna um lance UCI válido; entrada inválidaretorna um lance legal de contingência ou erro tratado, nunca uma exceção sem tratamento.
+ 
+────────────────────────────────────────
+5. SEPARAÇÃO DE RESPONSABILIDADES
+────────────────────────────────────────
+O projeto deve seguir práticas de boa programação, com o padrão de design behavioral "template method".
+ 
+Ponteiros de função isolados, sem o esqueleto fixo, são o padrão Strategy. Se o projeto usar Strategy em alguma parte, deve dizer isso na documentação, sem chamá-lo de Template Method.
+ 
+Para a qualidade do código, funções sem parâmetros declaradas com (void); parâmetros não usados marcados explicitamente.
+Todo malloc/fopen/fread tem a verificação do retorno e retorna erro tratado.
+Funções com `square` validam a faixa 0–63 (ou usam assert em modo debug).
+Sem variáveis globais mutáveis, exceto tabelas pré-calculadas imutáveis.
+Popcount: usar __builtin_popcountll com a flag de compilação adequada (ex.: -mpopcnt, com fallback portátil caso a CPU do ambiente não suporte).
+ 
+────────────────────────────────────────
+6. CASOS EXTREMOS
+────────────────────────────────────────
+Caso qualquer problema que quebre o fluxo do código apareça, analise, itere e caso as tentativas ultrapassem o limite da seção 3, retrabalhe a lógica escrita.
+ 
+Situações que o sistema deve tratar sem travar:
+FEN inválido ou incompleto; posição sem rei ou com dois reis do mesmo lado.
+Posição sem lances legais (mate ou afogamento); só um lance legal (devolvê-lo de imediato).
+Esgotamento de tempo na busca: devolver o melhor lance da última profundidade completa.
+Arquivo de pesos ausente, truncado, com versão errada ou com valores NaN/Inf.
+API do HuggingFace inacessível, lenta ou com resposta mal formada (ver Scripts Python, na seção 4).
+Partidas infinitas (mais de 300 lances: declarar empate).
+Promoção para peça inválida; en passant que deixaria o rei em xeque; roque através de xeque.
+Entrada do wrapper com lance anterior ilegal ou formato inesperado.
+Torneio com número de modelos menor que 2.
+Execução em ambiente sem Valgrind/Stockfish: pular a etapa com aviso explícito, sem fingir que passou.
+ 
+────────────────────────────────────────
+7. STACK TÉCNICA
+────────────────────────────────────────
+
+Compilação por gcc, -O2/-O3 -Wall -Wextra; alvo extra com -fsanitize=address,undefined.
+Base de dados para ser usada: "https://huggingface.co/datasets/linrock/bullet-training-data/tree/main"
+(não baixe os dados inteiros, consuma a API do HuggingFace. Use apenas uma amostra pequena em streaming, e registre no skills.md qual API/endpoint foi usado e o tamanho da amostra.)
+Base de como o projeto deve ser estruturado: "https://github.com/linrock/minifish"
+(seguir a organização em módulos. Registrar no skills.md o que foi adaptado e por quê.)
+para referência de limites e formato, siga as regras oficiais da competição no Kaggle: "https://www.kaggle.com/competitions/fide-google-efficiency-chess-ai-challenge"
+ 
+────────────────────────────────────────
+8. DOCUMENTAÇÃO E PASSOS FINAIS
+────────────────────────────────────────
+Ao finalizar uma iteração do loop, crie um arquivo skills.md e relate a documentação, o que cada classe faz, e adicione uma seção para descrever as informações aprendidas durante o desenvolvimento. Não escrever nome de variáveis nem de arquivos em skills.md
+Além das informações repassadas pelo usuário, adicione informações sobre tentativas. O que foi realizado e o que precisou ser refeito, o que deu certo, tarefas que não foram finalizadas e possíveis melhorias.
+ 
+Exigências adicionais incluem registrar os números reais medidos: tamanho do binário, pico de RAM, tempo por lance, nós por segundo, 
+registro do número de partidas do torneio e padrão de projeto.
+
+Caso algo tenha ficado ambíguo, gere de 5 a 9 perguntas necessárias para compreender o projeto.

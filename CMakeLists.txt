@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.10)
+project(chess_engine C)
+add_executable(chess_engine src/attacks.c src/board.c src/moves.c src/eval.c src/weights.c src/search.c src/main.c)
+target_include_directories(chess_engine PRIVATE src)
+target_link_libraries(chess_engine m)
+add_executable(test_all tests/test_all.c src/attacks.c src/board.c src/moves.c src/eval.c src/weights.c src/search.c)
+target_include_directories(test_all PRIVATE src)
+target_link_libraries(test_all m)
